@@ -57,7 +57,7 @@ export function apply(ctx, rawConfig = {}) {
   const baseUrl = `http://${webServer.host}:${webServer.port}`
   const stateDir = resolveStateDir(config.stateDir)
   const run = () => applyTranslations({
-    baseUrl, stateDir, force: config.force, timeoutMs: config.timeoutMs, log,
+    baseUrl, stateDir, force: config.force, timeoutMs: config.timeoutMs, waitForReadyMs: config.timeoutMs, log,
   }).catch(error => {
     // A missing or older Superagent is not this plugin's failure to escalate:
     // the panel still works, and the CLI reports the same thing on demand.

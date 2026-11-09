@@ -54,15 +54,24 @@ export class PromptsApiError extends Error {
 /**
  * Read the current prompt configuration.
  *
- * @param {{baseUrl: string, fetchImpl?: typeof fetch, timeoutMs?: number}} options
+ * @param {{baseUrl: string, fetchImpl?: typeof fetch, timeoutMs?: number, waitForReadyMs?: number}} options
  * @returns {Promise<{revision: number, config: Record<string, unknown>, parts: Map<string, {key: string, roles?: readonly string[], text: string, base?: string}>}>}
  */
-export async function readPrompts({ baseUrl, fetchImpl = globalThis.fetch, timeoutMs = 10000 }) {
-  const response = await fetchImpl(`${baseUrl}${PROMPTS_PATH}`, {
-    method: 'GET',
-    headers: { [REQUEST_HEADER]: '1' },
-    signal: AbortSignal.timeout(timeoutMs),
-  })
+export async function readPrompts({ baseUrl, fetchImpl = globalThis.fetch, timeoutMs = 10000, waitForReadyMs = 0 }) {
+  const deadline = Date.now() + waitForReadyMs
+  let response
+  for (;;) {
+    response = await fetchImpl(`${baseUrl}${PROMPTS_PATH}`, {
+      method: 'GET',
+      headers: { [REQUEST_HEADER]: '1' },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    // The web server can listen before Superagent has mounted its routes.
+    // Retry only this read; writes and permission errors are never retried.
+    if (response.status !== 404 || Date.now() >= deadline) break
+    await response.body?.cancel()
+    await new Promise(resolve => setTimeout(resolve, Math.min(200, Math.max(0, deadline - Date.now()))))
+  }
   if (!response.ok) {
     throw new PromptsApiError(`dsh-vivy-tone: reading the prompts failed with HTTP ${response.status}`, {
       status: response.status, body: await safeText(response),

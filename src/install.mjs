@@ -44,12 +44,12 @@ const describe = ({ skipped }) => skipped.map(({ part, reason, missing }) => (
  * an override this package did not write is left alone unless `force` is set.
  *
  * @param {{baseUrl: string, stateDir: string, force?: boolean, dryRun?: boolean,
- *   fetchImpl?: typeof fetch, timeoutMs?: number, log?: (message: string) => void}} options
+ *   fetchImpl?: typeof fetch, timeoutMs?: number, waitForReadyMs?: number, log?: (message: string) => void}} options
  */
 export async function applyTranslations({
-  baseUrl, stateDir, force = false, dryRun = false, fetchImpl, timeoutMs, log = () => {},
+  baseUrl, stateDir, force = false, dryRun = false, fetchImpl, timeoutMs, waitForReadyMs, log = () => {},
 }) {
-  const view = await readPrompts({ baseUrl, fetchImpl, timeoutMs })
+  const view = await readPrompts({ baseUrl, fetchImpl, timeoutMs, waitForReadyMs })
   const installed = readState(stateDir).parts
   const { writes, skipped } = planParts({ view, table: TRANSLATIONS, installed, force })
 
