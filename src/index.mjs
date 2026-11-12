@@ -12,11 +12,17 @@
  * `removeTranslations`, reachable from the CLI, and any single part can still
  * be reset from Superagent's own panel (Settings -> Prompts).
  *
+ * The tone section is editable from Settings -> 人格与语气 -> 语气. Its loopback
+ * API (`server.mjs`) is mounted whenever the plugin is enabled on a loopback
+ * server, independently of `autoInstall`: writing a tone is an explicit user
+ * action, not the startup install.
+ *
  * @module dsh-vivy-tone
  */
 
 import { resolveConfig } from './config.mjs'
 import { applyTranslations, resolveStateDir } from './install.mjs'
+import { registerTonePanel } from './server.mjs'
 
 export const name = 'dsh-vivy-tone'
 export const inject = ['webServer']
@@ -49,13 +55,23 @@ export function apply(ctx, rawConfig = {}) {
     log(`dsh-vivy-tone: not installing; the prompt API is loopback-only and this server is at ${webServer?.host ?? 'unknown'}`)
     return
   }
+
+  const baseUrl = `http://${webServer.host}:${webServer.port}`
+  const stateDir = resolveStateDir(config.stateDir)
+
+  // The tone panel needs the session check as well as the route; with no
+  // `connection` service it stays unmounted rather than serving unauthenticated.
+  ctx.inject(['webServer', 'connection'], scope => {
+    scope.effect(() => registerTonePanel(scope, {
+      baseUrl, stateDir, timeoutMs: config.timeoutMs, log: message => console.info(message),
+    }), 'vivy-tone: tone panel api')
+  })
+
   if (!config.autoInstall) {
     log('dsh-vivy-tone: autoInstall is off; run `node plugins/dsh-vivy-tone/src/cli.mjs --install` when you want the Chinese text')
     return
   }
 
-  const baseUrl = `http://${webServer.host}:${webServer.port}`
-  const stateDir = resolveStateDir(config.stateDir)
   const run = () => applyTranslations({
     baseUrl, stateDir, force: config.force, timeoutMs: config.timeoutMs, waitForReadyMs: config.timeoutMs, log,
   }).catch(error => {

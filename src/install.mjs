@@ -11,9 +11,13 @@
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
-  composeConfig, hashText, planParts, readPrompts, readState, savePrompts, stripConfig, writeState,
+  PromptsApiError, composeConfig, hashText, planParts, readPrompts, readState, savePrompts, stripConfig, writeState,
 } from './write.mjs'
-import { TRANSLATIONS, WAVE } from './zh.mjs'
+import { WAVE } from './zh.mjs'
+import { composeOrchestrator, normalizeTone, readTone, toneTable, writeTone } from './tone.mjs'
+
+/** The one part the editable tone lives in. */
+const TONE_PART = 'runtime/orchestrator'
 
 /** Where the record of our writes lives unless the configuration says otherwise. */
 export function defaultStateDir(env = process.env) {
@@ -51,7 +55,10 @@ export async function applyTranslations({
 }) {
   const view = await readPrompts({ baseUrl, fetchImpl, timeoutMs, waitForReadyMs })
   const installed = readState(stateDir).parts
-  const { writes, skipped } = planParts({ view, table: TRANSLATIONS, installed, force })
+  // The orchestrator part is composed from the stored tone, so a tone edit
+  // survives a restart instead of reverting to the shipped default.
+  const table = toneTable(readTone(stateDir).text)
+  const { writes, skipped } = planParts({ view, table, installed, force })
 
   if (!writes.length) {
     log(`dsh-vivy-tone: nothing to write at revision ${view.revision}${skipped.length ? ` (${describe({ skipped })})` : ''}`)
@@ -69,6 +76,32 @@ export async function applyTranslations({
   const revision = result?.revision ?? view.revision + 1
   log(`dsh-vivy-tone: saved revision ${revision} with ${writes.length} translated part(s)`)
   return { revision, written: writes.map(write => write.part), skipped, saved: true }
+}
+
+/**
+ * Store a new tone and write the composed orchestrator part into Superagent's
+ * prompt configuration, in that order: the prompt save happens first, so a
+ * refused or unreachable Superagent leaves the stored tone unchanged.
+ *
+ * @param {{baseUrl: string, stateDir: string, text: string,
+ *   fetchImpl?: typeof fetch, timeoutMs?: number, log?: (message: string) => void}} options
+ * @returns {Promise<{revision: number, text: string}>}
+ */
+export async function saveTone({ baseUrl, stateDir, text, fetchImpl, timeoutMs, log = () => {} }) {
+  const tone = normalizeTone(text)
+  const view = await readPrompts({ baseUrl, fetchImpl, timeoutMs })
+  const known = view.parts.get(TONE_PART)
+  if (!known) {
+    throw new PromptsApiError(`dsh-vivy-tone: this Superagent has no ${TONE_PART} part`, { status: 404 })
+  }
+  const composed = composeOrchestrator(tone)
+  const config = composeConfig(view, [{ part: TONE_PART, text: composed, ...(known.base ? { base: known.base } : {}) }])
+  const result = await savePrompts({ baseUrl, config, baseRevision: view.revision, fetchImpl, timeoutMs })
+  const revision = result?.revision ?? view.revision + 1
+  writeTone(stateDir, tone)
+  writeState(stateDir, { parts: { ...readState(stateDir).parts, [TONE_PART]: hashText(composed) }, revision })
+  log(`dsh-vivy-tone: tone saved into ${TONE_PART} at revision ${revision}`)
+  return { revision, text: tone }
 }
 
 /**

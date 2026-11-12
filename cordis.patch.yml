@@ -19,6 +19,10 @@
 #   node plugins/dsh-vivy-tone/src/cli.mjs --install
 # A single part can also be reset from Superagent's own panel. Every save lands
 # in the prompt history, so any of these is one revision away from undo.
+#
+# The tone section is editable in Settings -> 人格与语气 -> 语气. That card is this
+# package's browser half; it talks to this package's loopback API, which writes
+# through the same prompt API, so a tone save is a prompt-history revision too.
 - insert:
     - id: vivy-tone
       name: dsh-vivy-tone

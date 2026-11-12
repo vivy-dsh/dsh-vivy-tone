@@ -1,16 +1,19 @@
 {
   "name": "dsh-vivy-tone",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
-  "description": "Superagent's prompts in Chinese, on one switch. Replaces the prompt parts this package owns with their Chinese text through Superagent's own prompt API, so the prompt stays readable and editable in the panel. Installed means on; removing the overrides means off.",
+  "description": "Superagent's prompts in Chinese, on one switch, plus an editable tone section. Replaces the prompt parts this package owns with their Chinese text through Superagent's own prompt API, so the prompt stays readable and editable in the panel; the tone section is editable from Settings -> 人格与语气 -> 语气.",
   "license": "MIT",
   "main": "./src/index.mjs",
   "exports": {
     ".": "./src/index.mjs",
+    "./client": "./src/client.js",
     "./zh": "./src/zh.mjs",
+    "./tone": "./src/tone.mjs",
     "./write": "./src/write.mjs",
-    "./install": "./src/install.mjs"
+    "./install": "./src/install.mjs",
+    "./server": "./src/server.mjs"
   },
   "files": [
     "src",
@@ -20,6 +23,10 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
     }
   }
 }

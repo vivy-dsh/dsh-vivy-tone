@@ -12,6 +12,21 @@ Superagent 会给自己 compose 一段约 43 KB 的英文提示词。主 Session
 **只是可读性**：同一份契约，换成中文。不增删、不弱化任何一条规则，也不含人格内容——
 Laputa 仍是唯一人格事实源（`docs/architecture.md` §17 invariant 4）。
 
+## 设置里的语气（看与改）
+
+**设置 → 人格与语气 → 语气** 里能看到并编辑 Superagent 中文提示词中「怎么跟人说话」这一段
+（`runtime/orchestrator` 的语气小节）。浏览器半册注册进 dsh-laputa 声明的人格设置页插槽
+`settings.laputa.item`，所以语气卡片随本插件出现，随它消失。
+
+- **保存**：走 Superagent 自己的 `PUT /orchestrator/api/prompts`，下一轮请求生效；每次保存都是
+  提示词历史里的一个版本，可在 Settings → Prompts → History 回退。
+- **恢复默认**：把本包自带的语气文本载入编辑框，再点保存才写入。
+- **留空保存**：去掉语气小节，只保留编排器规则。
+- 语气文本存在 `$DSH_HOME/vivy-tone/tone.md`。启动时的安装按它重新拼出 `runtime/orchestrator`，
+  所以重启不会把手改的语气换回默认值。
+- 接口只接受本机、同源、带会话的请求（`/dsh-vivy-tone/api/tone`）。
+- 这一段是表达与口气规则，不是人格正文：人格仍只由 Laputa 注入。
+
 ## 开关
 
 | 动作 | 命令 |
@@ -58,8 +73,12 @@ Laputa 仍是唯一人格事实源（`docs/architecture.md` §17 invariant 4）�
 
 ```bash
 npm run stop && npm run setup:vivy-tone && npm run start
-node --test tests/vivy-tone.test.mjs
+node tests/vivy-tone.test.mjs          # 安装、状态文件、语气与接口
+node tests/vivy-tone-client.test.mjs   # 设置里的语气卡片
 ```
+
+语气卡片需要面板重启后才会出现（新增的浏览器半册在启动时扫描 `dsh.client`），客户端代码本身的
+改动刷新页面即可。
 
 ## 来源与许可
 
